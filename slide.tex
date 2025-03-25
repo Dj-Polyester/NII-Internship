@@ -109,22 +109,22 @@ List of predicates is [...]. What Subject-Predicate-Object triples are included 
 \end{frame}
 
 \begin{frame}{Points to Consider}
-    \begin{itemize}
+    \begin{enumerate}
         \item Accuracy of ground truth KG
         \item Negative LLM outputs not entailed by the labels
         \item Positive LLM outputs that can be entailed by the labels
         \item Number of parameters
-    \end{itemize}
+    \end{enumerate}
 \end{frame}
 
 \begin{frame}{Assumptions}
-    \begin{itemize}
+    \begin{enumerate}
         \item CWA (i.e. No negative relations)
         \begin{itemize}
             \item[] Accurate constraints 
         \end{itemize}
         \item No other entailments (i.e. unique relations)
-    \end{itemize}
+    \end{enumerate}
 \end{frame}
 
 \begin{frame}[fragile]{Sample Sentence}
@@ -321,7 +321,7 @@ bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",
     bnb_4bit_use_double_quant=True,
-    bnb_4bit_compute_dtype=compute_dtype, 
+    bnb_4bit_compute_dtype=torch.bfloat16, 
     max_seq_length=4096
 )
 model = AutoModelForCausalLM.from_pretrained(
@@ -366,7 +366,7 @@ def loss_function(self, batch):
 \end{frame}
 \begin{frame}[fragile]{Self-Critical Sequence Training}
 \begin{block}{REINFORCE algorithm}
-1) Predict the reward $G_t$
+1) Predict the reward $G_t$\ \cite{weng_policy_2018}
 \end{block}
 \begin{minted}[fontsize=\tiny]{python}
 def loss_function(self, batch):
@@ -374,7 +374,7 @@ def loss_function(self, batch):
     actions_amax = logits.argmax(dim=-1) # (N, L)
     scale_amax = calc_scale(actions_amax, labels) if self.baseline else 0 # N
     scale_sample = None
-    if self.num_samples > 0:
+    
     probs = F.softmax(logits, dim=-1) # (N, L, S)
     probs_view_2d = probs.view(-1, logits.shape[-1]) # (N*L, S)
 
@@ -403,8 +403,12 @@ def loss_function(self, batch):
 \end{minted}
 \end{frame}
 \begin{frame}[fragile]{Smoothed Return}
-\begin{minted}[fontsize=\normalsize]{python}
+\begin{minted}[fontsize=\footnotesize]{python}
 def loss_function(self, batch):
+    ...
+    smoothed_loss = log_probs.sum(dim=-1) # (N, L)
+    smoothed_loss.masked_fill_(padding_mask, 0.0)
+    smoothed_loss = smoothed_loss.sum() / (num_active_elements * log_probs.shape[-1])
     ...
     lpa.masked_fill_(padding_mask, 0.0) # (R, N, L) or (N, L)
     lpa_len_1 = len(lpa.shape)-1
